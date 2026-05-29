@@ -75,10 +75,10 @@ namespace CyberBot_Part_Two
             string rawQuestion = question.Text.Trim();
 
             if (string.IsNullOrWhiteSpace(rawQuestion))
-            {
+            {//start of if statement
                 error_method("CyberBot", "Please enter a question.");
                 return;
-            }
+            }//end of if statement
 
             // Remove special characters
             string questions = RemoveSpecialCharacters(rawQuestion);
@@ -96,14 +96,14 @@ namespace CyberBot_Part_Two
             string feelingReply = feelings.feeling_response(rawQuestion);
 
             if (!string.IsNullOrWhiteSpace(feelingReply))
-            {
+            {//stsrt of if statement
                 error_method("CyberBot", feelingReply);
 
                 // continue cybersecurity topic automatically
                 ai_check(questions);
 
                 return;
-            }
+            }// end of if statement
 
             // ai response
             auto_show_interest();
@@ -117,11 +117,11 @@ namespace CyberBot_Part_Two
 
             // Check if user entered anything meaningful
             if (string.IsNullOrWhiteSpace(questions))
-            {
+            {//start of if statement
                 error_method("CyberBot", "Please enter a valid question.");
                 question.Clear();
                 return;
-            }
+            }// end of if statement
 
             // Variables for processing
             string[] words = questions.ToLower().Split(
@@ -132,9 +132,9 @@ namespace CyberBot_Part_Two
             if (questions.ToLower().Contains("more")
                 || questions.ToLower().Contains("another")
                 || questions.ToLower().Contains("explain"))
-            {
+            {//start of if statement
                 questions = pre_question;
-            }
+            }// end of if statement
 
             bool found = false;
             string message = string.Empty;
@@ -146,7 +146,7 @@ namespace CyberBot_Part_Two
 
             // Process each word
             foreach (string word in words)
-            {
+            {//start fo foreach loop
                 // Skip ignored words
                 if (word.Length < 3 || ignore.Contains(word.ToLower()))
                     continue;
@@ -155,14 +155,14 @@ namespace CyberBot_Part_Two
 
                 // INTEREST MEMORY
                 if (word.Contains("interested"))
-                {
+                {//start of if statement
                     string store_interests = string.Empty;
                     bool found_interest = false;
 
                     HashSet<string> currentInterests = new HashSet<string>();
 
                     foreach (string interest in words)
-                    {
+                    {//start of foreach loop
                         string clean = interest.ToLower().Trim();
 
                         clean = Regex.Replace(clean, @"[^a-zA-Z0-9\s]", "");
@@ -172,28 +172,28 @@ namespace CyberBot_Part_Two
                             && clean != "and"
                             && clean != "in"
                             && clean.Length >= 3)
-                        {
+                        {//start of if statement
                             found_interest = true;
                             currentInterests.Add(clean);
-                        }
-                    }
+                        }// end of if statement
+                    }// Join interests into a string
 
                     store_interests = string.Join(", ", currentInterests);
 
                     if (found_interest && !string.IsNullOrWhiteSpace(store_interests))
-                    {
+                    {//start of if statement
                         string filename = "interested_topic.txt";
 
                         bool userFound = false;
 
                         if (File.Exists(filename))
-                        {
+                        {//start of if statement
                             string[] lines = File.ReadAllLines(filename);
 
                             for (int i = 0; i < lines.Length; i++)
-                            {
+                            {//start of for loop
                                 if (lines[i].StartsWith(username))
-                                {
+                                {// start of if statement
                                     userFound = true;
 
                                     string existing =
@@ -208,9 +208,9 @@ namespace CyberBot_Part_Two
                                         );
 
                                     foreach (string item in currentInterests)
-                                    {
+                                    {//start of foreach loop
                                         existingSet.Add(item);
-                                    }
+                                    }// end of foreach loop
 
                                     string finalList = string.Join(", ", existingSet);
 
@@ -223,12 +223,12 @@ namespace CyberBot_Part_Two
                                         + " to your interests.\n";
 
                                     break;
-                                }
-                            }
-                        }
+                                }// end of if statement
+                            }// end of for loop
+                        }// end of if statement
 
                         if (!userFound)
-                        {
+                        {//start of if statement
                             File.AppendAllText(
                                 filename,
                                 username + " interested in: "
@@ -237,62 +237,62 @@ namespace CyberBot_Part_Two
 
                             message += "Great! I will remember that you are interested in "
                                 + store_interests + ".\n";
-                        }
-                    }
+                        }// end of if statement
+                    }// end of if statement
                     else
-                    {
+                    {//start of else statement
                         message += "Please specify your interests clearly.\n";
-                    }
-                }
+                    }// end of else statement
+                }// end of if statement
 
                 // Search for matching answers
                 bool wordFound = false;
 
                 foreach (string answer in reply)
-                {
+                {//start of foreach loop
                     if (answer.ToLower().Contains(word))
-                    {
+                    {//start of if statement
                         wordFound = true;
                         per_word.Add(answer);
-                    }
-                }
+                    }// end of if statement
+                }// end of foreach loop
 
                 // RANDOM RESPONSE
                 if (wordFound && per_word.Count > 0)
-                {
+                {//start of if statement
                     found = true;
 
                     int indexing = indexer.Next(0, per_word.Count);
 
                     answers_found.Add(per_word[indexing]);
-                }
-            }
+                }// end of if statement
+            }// end of foreach loop
 
             // Show responses
             if (found && answers_found.Count > 0)
-            {
+            {//start of if statement
                 answers_found = answers_found.Distinct().ToList();
 
                 foreach (string per_answer in answers_found)
-                {
+                {//start of foreach loop
                     message += per_answer + "\n";
-                }
+                }// end of foreach loop
 
                 error_method("CyberBot", message.TrimEnd('\n'));
 
                 chats.ScrollIntoView(chats.Items[chats.Items.Count - 1]);
-            }
+            }// end of if statement
             else
-            {
+            {//start of else statement
                 // fallback messages
                 string[] fallbackMessages =
-                {
+                {//start of array
                     "I'm sorry, I don't understand that. Could you rephrase your question?",
                     "I didn't quite get that. Try asking about cyber security topics.",
                     "Hmm, I'm not sure how to respond to that. Can you ask something else?",
                     "I couldn't find an answer for that. Please ask about programming, security, or technology.",
                     "My apologies, I don't have information on that topic yet."
-                };
+                };//end of array
 
                 Random random = new Random();
 
@@ -300,7 +300,7 @@ namespace CyberBot_Part_Two
                     fallbackMessages[random.Next(fallbackMessages.Length)];
 
                 error_method("CyberBot", fallbackMessage);
-            }
+            }// end of else statement
 
             // Clear the textbox
             question.Clear();
@@ -309,54 +309,54 @@ namespace CyberBot_Part_Two
 
         //method to remove special characters
         private string RemoveSpecialCharacters(string input)
-        {
+        {//start of method
             if (string.IsNullOrWhiteSpace(input))
                 return string.Empty;
 
             StringBuilder sanitized = new StringBuilder();
 
             foreach (char c in input)
-            {
+            {//start of foreach loop    
                 if (char.IsLetterOrDigit(c)
                     || char.IsWhiteSpace(c)
                     || c == '\''
                     || c == '-')
-                {
+                {//start of if statement
                     sanitized.Append(c);
-                }
+                }// end of if statement
                 else
-                {
+                {// Replace special characters with space
                     sanitized.Append(' ');
-                }
-            }
+                }// end of else statement
+            }// end of foreach loop
 
             string result = sanitized.ToString();
 
             result = Regex.Replace(result, @"\s+", " ").Trim();
 
             return result;
-        }
+        }// end of method
 
         //method count to show interests randomly
         private void auto_show_interest()
-        {
+        {//start of method
             if (counting == 3)
-            {
+            {//start of if statement
                 string filename = "interested_topic.txt";
 
                 if (File.Exists(filename))
-                {
+                {//start of if statement
                     string[] lines = File.ReadAllLines(filename);
 
                     foreach (string line in lines)
-                    {
+                    {//start of foreach loop
                         if (line.StartsWith(username))
-                        {
+                        {//start of if statement
                             int colonIndex =
                                 line.IndexOf("interested in:");
 
                             if (colonIndex >= 0)
-                            {
+                            {//start of if statement
                                 string interests =
                                     line.Substring(colonIndex + 14).Trim();
                                   error_method(
@@ -369,56 +369,56 @@ namespace CyberBot_Part_Two
                                 ai_check(interests);
 
                                 break;
-                            }
-                        }
-                    }
-                }
+                            }// end of if statement
+                        }// end of if statement
+                    }// end of foreach loop
+                }// end of if statement
 
                 counting = 0;
-            }
+            }// end of if statement
             else
-            {
+            {//start of else statement
                 counting += 1;
-            }
-        }
+            }// end of else statement
+        }// end of method
 
         // Updated error method
         private void error_method(string name, string message)
-        {
+        {//start of method
             Border messageBorder = new Border
-            {
+            {//start of object initializer
                 Margin = new Thickness(0, 2, 0, 2),
                 Padding = new Thickness(5, 3, 5, 3),
                 CornerRadius = new CornerRadius(5)
-            };
+            };// end of object initializer
 
             // chatbot color
             if (name.ToLower().Contains("CyberBot")
                 || name.ToLower().Contains("chat"))
-            {
+            {//start of if statement
                 messageBorder.Background =
                     new SolidColorBrush(Color.FromRgb(240, 248, 255));
 
                 messageBorder.BorderBrush =
                     new SolidColorBrush(Color.FromRgb(173, 216, 230));
-            }
+            }// user color
             else
-            {
+            {// start of else statement
                 // user color
                 messageBorder.Background =
                     new SolidColorBrush(Color.FromRgb(245, 245, 245));
 
                 messageBorder.BorderBrush =
                     new SolidColorBrush(Color.FromRgb(211, 211, 211));
-            }
+            }// end of else statement
 
             messageBorder.BorderThickness = new Thickness(1);
 
             TextBlock messageText = new TextBlock
-            {
+            {//start of object initializer
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2)
-            };
+            };// end of object initializer
 
             Brush nameColor =
                 (name.ToLower().Contains("CyberBot")
@@ -429,24 +429,28 @@ namespace CyberBot_Part_Two
             Brush messageColor = Brushes.Black;
 
             messageText.Inlines.Add(new Run
-            {
+            {//start of object initializer
                 Text = name + ": ",
                 Foreground = nameColor,
                 FontWeight = FontWeights.Bold
-            });
+            }// end of object initializer
+            )
+            ;
+
 
             messageText.Inlines.Add(new Run
-            {
+            {//start of object initializer
                 Text = message,
                 Foreground = messageColor
-            });
+            }// end of object initializer
+            );
 
             messageBorder.Child = messageText;
 
             chats.Items.Add(messageBorder);
 
             chats.ScrollIntoView(chats.Items[chats.Items.Count - 1]);
-        }
+        }// end of method
 
     }//end of class
 }//end of namespace
