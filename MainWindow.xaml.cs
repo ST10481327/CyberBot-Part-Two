@@ -6,10 +6,16 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
 
 namespace CyberBot_Part_Two
 {//start of namespace
@@ -17,440 +23,861 @@ namespace CyberBot_Part_Two
     public partial class MainWindow : Window
     {//start of class
 
-        //creating an instance for the class Array
-        ArrayList reply = new ArrayList();
-        ArrayList ignore = new ArrayList();
-        user_name check_name = new user_name();
 
-        // sentiment object
-        sentiment feelings = new sentiment();
+        //store chat history entries
+        List<string> chatHistory = new List<string>();
+
+        //store the quiz histry entries
+        List<string> quizHistory = new List<string>();
+
+        //stores task activity
+        List<string>taskActivityLog = new List<string>();
+
+        //creating an instance for the class Array
+        public ArrayList reply = new ArrayList();
+        public ArrayList ignore = new ArrayList();
+        user_name check_name = new user_name();
 
         // variables
         string username = string.Empty;
         string pre_question = string.Empty;
         int counting = 0;
 
-        public MainWindow()
-        {//start of constructor
 
+        //creating a class training with an object name train_ai
+        training train_ai = new training();
+
+
+        //for the tasks class with database to add task for reminder
+        //create an instance for the class tasks
+        //with an object name manage_tasks
+        tasks manage_tasks = new tasks();
+        //global variable to hold the task details
+        string task_name, task_description, task_dueDate, task_status = string.Empty;
+
+
+
+
+
+
+        // Counter for tracking how many times the user has interacted (used for reminders)
+        int count_interest = 0;
+
+        // Tracks the current quiz question index
+        int currentQuestionIndex = 0;
+
+        // Holds the user’s current quiz score
+        int score = 0;
+
+        // Stores the user’s currently selected answer
+        string selectedAnswer = null;
+
+        // Stores the list of answer buttons for the current quiz question
+        List<Button> answerButtons;
+
+        // Holds the entire list of quiz questions
+        List<Question_in_quiz> questions;
+
+        // Handles loading quiz questions from storage or file
+        Quiz_Question_Load load_Quiz = new Quiz_Question_Load();
+
+
+
+        public MainWindow()
+        {
             InitializeComponent();
 
-            new respond(reply, ignore);
 
-            //creating an instance for the class voice_greeting
+            //store answers 
+            new respond(reply, ignore) { };
+
+            //train NLP on the run
+            train_ai.Train();
+            manage_tasks.CreateTableIfNotExists();
+            //creating an instance for the class voice_greeting 
+            //with an object name greet
             voice_greeting greet = new voice_greeting();
 
             //call the voice method
             greet.PlaySound();
 
-        }//end of constructor
+            // Dynamically add all buttons to the UI (custom logic)
+            addAllButtons();
 
-        //proceed event handler
+            // Load quiz questions automatically into the 'questions' list
+            load_Quiz.autoLoadQuiz(ref questions);
+
+            // Load questions into the UI for display or interaction
+            loadQuestions();
+
+        }
+
+
+
+
+
+        // Switch to the Chats page
+        private void chatting(object sender, RoutedEventArgs e)
+        {
+            // Show chats page and hide all others
+            chat_page.Visibility = Visibility.Visible;
+            HistoryPage.Visibility = Visibility.Hidden;
+            reminderPage.Visibility = Visibility.Hidden;
+            LogPage.Visibility = Visibility.Hidden;
+            gamePage.Visibility = Visibility.Hidden;
+        }
+
+        // Switch to the Reminders page
+        private void reminders(object sender, RoutedEventArgs e)
+        {
+            // Show reminders page and hide all others
+            chat_page.Visibility = Visibility.Hidden;
+            HistoryPage.Visibility = Visibility.Collapsed;
+            reminderPage.Visibility = Visibility.Visible;
+            LogPage.Visibility = Visibility.Hidden;
+            gamePage.Visibility = Visibility.Hidden;
+
+
+
+            //call the auto load task method, to show all the tasks
+            autoLoad_task();
+        }
+
+        // Switch to the History page
+        private void history(object sender, RoutedEventArgs e)
+        {
+            // Show history page and hide all others
+            chat_page.Visibility = Visibility.Hidden;
+            HistoryPage.Visibility = Visibility.Visible;
+            reminderPage.Visibility = Visibility.Hidden;
+            LogPage.Visibility = Visibility.Hidden;
+            gamePage.Visibility = Visibility.Hidden;
+
+            //clear and repopulate the history list
+            history_list.Items.Clear();
+
+            history_list.Items.Add("=====Chat History=====");
+            if (chatHistory.Count == 0)
+            {
+                history_list.Items.Add("No chat history yet");
+
+            }
+            else
+            {
+
+                foreach (string entry in chatHistory)
+                    history_list.Items.Add(entry);
+                {
+
+                    history_list.Items.Add("");
+                    history_list.Items.Add("=====QUIZ HISTORY=====");
+
+                    if (quizHistory.Count == 0)
+                    {
+
+                        history_list.Items.Add("No quiz history yet");
+
+                    }
+                    else
+                    {
+                        foreach (string entry in quizHistory)
+                                history_list.Items.Add(entry);
+                    }
+
+                }
+
+            }
+
+
+        }
+
+        // Switch to the Activity Log page
+        private void activity(object sender, RoutedEventArgs e)
+        {
+            // Show log page and hide all others
+            chat_page.Visibility = Visibility.Hidden;
+            HistoryPage.Visibility = Visibility.Hidden;
+            reminderPage.Visibility = Visibility.Hidden;
+            LogPage.Visibility = Visibility.Visible;
+            gamePage.Visibility = Visibility.Hidden;
+
+            // Scroll to the latest activity log entry
+
+        }
+
+        // Switch to the Game page
+        private void game(object sender, RoutedEventArgs e)
+        {
+            // Show game page and hide all others
+            chat_page.Visibility = Visibility.Hidden;
+            HistoryPage.Visibility = Visibility.Hidden;
+            reminderPage.Visibility = Visibility.Hidden;
+            LogPage.Visibility = Visibility.Hidden;
+            gamePage.Visibility = Visibility.Visible;
+        }
+
+        // Exit the application
+        private void exit(object sender, RoutedEventArgs e)
+        {
+            // Terminate the application immediately
+            System.Environment.Exit(0);
+        }
+
+
+
+
+        //method to add all the buttons
+        private void addAllButtons()
+        {
+
+            answerButtons = new List<Button> {
+        optionButtonOne,
+        optionButtonTwo,
+        optionButtonThree,
+        optionButtonFour
+
+        };
+
+        }//end of code
+
+        //reset buttons background 
+        private void buttonReset()
+        {
+            //reseting the background color of the button when clicked
+            foreach (Button clickButton in answerButtons)
+            {
+                //resetting the background color of the button
+                clickButton.ClearValue(Button.BackgroundProperty);
+                clickButton.Background = System.Windows.Media.Brushes.Gray;
+
+
+            }
+
+
+        }
+
+        //creating a method to load the questions
+        private void loadQuestions()
+        {
+            //checking if the user didnt complete the quiz
+            if (currentQuestionIndex >= questions.Count)
+            {
+                //display message for when the quiz is not completed
+                MessageBox.Show("Great job! You’ve completed the quiz with a score of " + score + ".\nThe game will now reset. Press OK to continue.");
+                currentQuestionIndex = 0;
+                score = 0;
+                selectedAnswer = null;
+                loadQuestions();
+                return;
+            }
+
+            //get the question
+            var foundQuestion = questions[currentQuestionIndex];
+            question_asked.Text = foundQuestion.Text;
+
+            //setting  up the score
+            score_count.Text = "score.." + "\n" + score;
+
+            //resetting the selected answer
+            selectedAnswer = null;
+
+            //resetting the buttons
+            buttonReset();
+
+            //randomizing answers
+            List<string> allAnswers = new List<string>(foundQuestion.wrongAnswer);
+            allAnswers.Add(foundQuestion.correctAnswer);
+
+            //creating an instance for the randomize class
+            Random getIndex = new Random();
+            for (int count = 0; count < allAnswers.Count; count++)
+            {
+                int found_index = getIndex.Next(count, allAnswers.Count);
+
+                (allAnswers[count], allAnswers[found_index]) = (allAnswers[found_index], allAnswers[count]);
+
+
+            }
+
+            //assigning answers to the buttons
+            for (int count = 0; count < answerButtons.Count; count++)
+            {
+                answerButtons[count].Content = allAnswers[count];
+
+            }
+
+
+
+        }//end of code
+
+
+
+        //quiz game code
+
+        private void optionSelected(object sender, RoutedEventArgs e)
+        {
+            //calling the button reset method
+            buttonReset();
+            Button clickButton = sender as Button;
+            clickButton.Background = System.Windows.Media.Brushes.Green;
+            selectedAnswer = clickButton.Content.ToString();
+
+
+
+        }
+
+        private void answerButton(object sender, RoutedEventArgs e)
+        {
+            //checking if the user selected an option first
+            if (selectedAnswer == string.Empty)
+            {
+                //display message
+                MessageBox.Show("please select an answer!");
+
+                return;
+            }
+            if (selectedAnswer == questions[currentQuestionIndex].correctAnswer)
+            {
+                score += 5;
+
+            }
+            currentQuestionIndex++;
+            loadQuestions();
+
+
+
+
+
+        }//end of quiz
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        //proceed  event handler
         private void proceed(object sender, RoutedEventArgs e)
-        {// show welcome message
-
+        {
             //Hide home page grid and set Username grid visible
             home_grid.Visibility = Visibility.Hidden;
             username_grid.Visibility = Visibility.Visible;
+        }
 
-        }//end of proceed event handler
 
-        //submit name event handler
+
+
+
+
+
+
+
+
+        //submit name  event handler
         private void submit_name(object sender, RoutedEventArgs e)
-        {// Get the username from the design
+        {
 
+
+
+            //check the user name from memory recall
             username = check_name.submit_name(usernames_input, chats);
+
+
+
+
 
             //Hide username page grid and set chats grid visible
             username_grid.Visibility = Visibility.Hidden;
-            chat_grid.Visibility = Visibility.Visible;
+            MainPage.Visibility = Visibility.Visible;
+        }
 
-        }//end of submit name event handler
+
+
+
+
+        // Handles double-clicking on an item in the reminder list
+        private void remind_append_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+
+
+
+
+            //get the selected value
+            string get_selected_value = view_tasks.SelectedValue.ToString();
+
+            //get the id using sub string , from 0 to 1
+            string get_id = get_selected_value.Substring(0, 1);
+            //then cast the string get_id to an int
+            int id = int.Parse(get_id);
+
+            //check if the selected task end with "done", then delete if ends with done
+            if (get_selected_value.ToLower().EndsWith("done"))
+            {//start of if
+
+
+                //if done then delete the task
+                manage_tasks.delete_task(id);
+
+
+            }//end of if
+            else
+            {//start of else
+                //mark it dobe since it is ending with pending not "DONE"
+                manage_tasks.update_taskStatus(id);
+
+
+                // MessageBox.Show(""+  id);
+
+            }//end of else
+
+
+
+            //recall the auto load method
+            autoLoad_task();
+
+        }
+
+
+
+
+        //method to auto load the Tasks of a user
+        private void autoLoad_task()
+        {
+
+
+            //clear the ListView first
+            view_tasks.Items.Clear();
+
+            //use the object name manage_task
+            manage_tasks.load_tasks(view_tasks);
+
+        }
+
+
 
         //send event handler
         private void send(object sender, RoutedEventArgs e)
-        {// Store the raw question for processing
-
-            // Get the question
-            string rawQuestion = question.Text.Trim();
+        {
+            // Get the question from the design 
+            string rawQuestion = question.Text.ToString();
 
             if (string.IsNullOrWhiteSpace(rawQuestion))
-            {//start of if statement
-                error_method("CyberBot", "Please enter a question.");
+            {
+                error_method("ChatBot", "Please enter a question.");
                 return;
-            }//end of if statement
+            }
 
-            // Remove special characters
+            // Remove special characters and clean the question
             string questions = RemoveSpecialCharacters(rawQuestion);
 
-            pre_question = questions;
-
-            // Save previous question
-            pre_question = questions;
-
-            // Show user message
+            // Show what the user typed 
             error_method(username, rawQuestion);
 
-            // detect feelings
-            // detect feelings
-            string feelingReply = feelings.feeling_response(rawQuestion);
 
-            if (!string.IsNullOrWhiteSpace(feelingReply))
-            {//stsrt of if statement
-                error_method("CyberBot", feelingReply);
-
-                // continue cybersecurity topic automatically
-                ai_check(questions);
-
-                return;
-            }// end of if statement
-
-            // ai response
+            //ai chats and auto_show_interest
             auto_show_interest();
             ai_check(questions);
+        }
 
-        }// end of send event handler
+        //end for the username submit
+
+
 
         //start of ai_chat method
         private void ai_check(string questions)
-        {// Remove special characters and clean the question
+        {
+
 
             // Check if user entered anything meaningful
             if (string.IsNullOrWhiteSpace(questions))
-            {//start of if statement
-                error_method("CyberBot", "Please enter a valid question.");
+            {
+                error_method("ChatBot", "Please enter a valid question.");
                 question.Clear();
                 return;
-            }// end of if statement
+            }
+
+
+
+            // Check if the question contains only special characters or empty after cleaning
+            if (questions.Length == 0 || string.IsNullOrWhiteSpace(questions))
+            {
+                error_method("ChatBot", "I couldn't understand that.");
+                question.Clear();
+                return;
+            }
+
+
+
 
             // Variables for processing
-            string[] words = questions.ToLower().Split(
-                new char[] { ' ', ',', '.', '?', '!', ';', ':' },
-                StringSplitOptions.RemoveEmptyEntries);
-
-            // follow up conversation support
-            if (questions.ToLower().Contains("more")
-                || questions.ToLower().Contains("another")
-                || questions.ToLower().Contains("explain"))
-            {//start of if statement
-                questions = pre_question;
-            }// end of if statement
-
+            string[] words = questions.ToLower().Split(new char[] { ' ', ',', '.', '?', '!', ';', ':' }, StringSplitOptions.RemoveEmptyEntries);
             bool found = false;
             string message = string.Empty;
-
             Random indexer = new Random();
-
             List<string> per_word = new List<string>();
             List<string> answers_found = new List<string>();
 
+
+
+
+
+            if (questions.ToLower().StartsWith("add task"))
+            {//start of if add task
+
+                //add the task to the listview as part of the chats
+                message += "Great your task is added, would you like a reminder?\n and also ";
+
+                //then filter to get task name
+                task_name = questions.Replace("add task", "");
+
+
+
+            }//end of if checking task add or add task
+
+
+            //check if the user want to set a reminder
+            if (questions.ToLower().StartsWith("yes, remind me in") || questions.ToLower().StartsWith("yes remind me in"))
+            {//start of the reminder if
+
+                //replace the yes, remind me in
+                string reminder = questions.Replace("yes, remind me in", "");
+
+                //then get the number inside the reminder variable
+                string days_number = Regex.Replace(reminder, @"[^0-9]", "");
+
+                //cast the days_number to an int
+                int days = int.Parse(days_number);
+
+                //add the days the user chose to do the task to the current date
+                DateTime user_reminder = DateTime.Now.AddDays(days);
+
+
+
+                //format the date how it should be
+                //Like  06-07-2026 or Jun 15 2026
+                string format_date = user_reminder.ToString("MMMM dd yyyy");
+                //assign the format date with task_dueDate and status
+                task_dueDate = format_date;
+                task_status = "pending";
+
+                //call the insert method to store the task
+                error_method("ChatBot: ", "good , i will remind you in " + days + " days, on the " + format_date + "\n, to view your task click on view tasks");
+                manage_tasks.insert_task(task_name, task_description, task_dueDate, task_status);
+
+                return;
+
+            }//end of the reminder if
+
+
             // Process each word
             foreach (string word in words)
-            {//start fo foreach loop
-                // Skip ignored words
+            {
+                // Skip very short words or ignored words
                 if (word.Length < 3 || ignore.Contains(word.ToLower()))
                     continue;
 
                 per_word.Clear();
 
-                // INTEREST MEMORY
+
+
+
+
+                //start of interests
+
+
+
+
                 if (word.Contains("interested"))
-                {//start of if statement
+                {
                     string store_interests = string.Empty;
                     bool found_interest = false;
 
                     HashSet<string> currentInterests = new HashSet<string>();
 
                     foreach (string interest in words)
-                    {//start of foreach loop
+                    {
+                        // CLEAN INPUT
                         string clean = interest.ToLower().Trim();
-
                         clean = Regex.Replace(clean, @"[^a-zA-Z0-9\s]", "");
 
-                        if (!ignore.Contains(clean)
-                            && clean != "interested"
-                            && clean != "and"
-                            && clean != "in"
-                            && clean.Length >= 3)
-                        {//start of if statement
+                        // FILTER NOISE WORDS
+                        if (!ignore.Contains(clean) && clean != "interested" && clean != "and" && clean != "in" && clean.Length >= 3)
+                        {
                             found_interest = true;
                             currentInterests.Add(clean);
-                        }// end of if statement
-                    }// Join interests into a string
+                        }
+                    }
 
+
+                    // prepare interests
                     store_interests = string.Join(", ", currentInterests);
 
                     if (found_interest && !string.IsNullOrWhiteSpace(store_interests))
-                    {//start of if statement
+                    {
                         string filename = "interested_topic.txt";
-
                         bool userFound = false;
 
                         if (File.Exists(filename))
-                        {//start of if statement
+                        {
                             string[] lines = File.ReadAllLines(filename);
 
                             for (int i = 0; i < lines.Length; i++)
-                            {//start of for loop
+                            {
                                 if (lines[i].StartsWith(username))
-                                {// start of if statement
+                                {
                                     userFound = true;
 
-                                    string existing =
-                                        lines[i].Replace(username + " interested in:", "")
-                                        .ToLower();
+                                    //get all the interests
+                                    string existing = lines[i].Replace(username + " interested in:", "").ToLower();
 
-                                    HashSet<string> existingSet =
-                                        new HashSet<string>(
-                                            existing.Split(',')
-                                            .Select(x => x.Trim())
-                                            .Where(x => x != "")
-                                        );
+                                    HashSet<string> existingSet = new HashSet<string>(existing.Split(',').Select(x => x.Trim()).Where(x => x != ""));
 
+                                    // remove dumplicates
                                     foreach (string item in currentInterests)
-                                    {//start of foreach loop
+                                    {
                                         existingSet.Add(item);
-                                    }// end of foreach loop
+                                    }
 
                                     string finalList = string.Join(", ", existingSet);
 
                                     lines[i] = username + " interested in: " + finalList;
-
                                     File.WriteAllLines(filename, lines);
 
-                                    message += "Great! I added "
-                                        + store_interests
-                                        + " to your interests.\n";
-
+                                    message += "great, i added " + store_interests + " to your interests and ";
                                     break;
-                                }// end of if statement
-                            }// end of for loop
-                        }// end of if statement
+                                }
+                            }
+                        }
 
                         if (!userFound)
-                        {//start of if statement
+                        {
                             File.AppendAllText(
                                 filename,
-                                username + " interested in: "
-                                + store_interests + "\n"
+                                username + " interested in: " + store_interests + "\n"
                             );
 
-                            message += "Great! I will remember that you are interested in "
-                                + store_interests + ".\n";
-                        }// end of if statement
-                    }// end of if statement
+                            message += "great, i will remember that you are interested in " + store_interests + " and ";
+                        }
+                    }
                     else
-                    {//start of else statement
-                        message += "Please specify your interests clearly.\n";
-                    }// end of else statement
-                }// end of if statement
+                    {
+                        message += "Please specify what you're interested in (e.g., 'I am interested in cybersecurity')";
+                    }
+                }
+
+
+
+                //end of interests
+
+
+
 
                 // Search for matching answers
                 bool wordFound = false;
-
                 foreach (string answer in reply)
-                {//start of foreach loop
+                {
                     if (answer.ToLower().Contains(word))
-                    {//start of if statement
+                    {
                         wordFound = true;
                         per_word.Add(answer);
-                    }// end of if statement
-                }// end of foreach loop
+                    }
+                }
 
-                // RANDOM RESPONSE
                 if (wordFound && per_word.Count > 0)
-                {//start of if statement
+                {
                     found = true;
-
                     int indexing = indexer.Next(0, per_word.Count);
-
                     answers_found.Add(per_word[indexing]);
-                }// end of if statement
-            }// end of foreach loop
+                }
+            }
 
-            // Show responses
+            // Show responses or error message
             if (found && answers_found.Count > 0)
-            {//start of if statement
+            {
+                // Remove duplicate answers
                 answers_found = answers_found.Distinct().ToList();
 
                 foreach (string per_answer in answers_found)
-                {//start of foreach loop
+                {
                     message += per_answer + "\n";
-                }// end of foreach loop
+                    task_description += per_answer + " ";
+                }
+                //task_description = message.TrimEnd('\n');
+                error_method("ChatBot", message.TrimEnd('\n'));
 
-                error_method("CyberBot", message.TrimEnd('\n'));
 
                 chats.ScrollIntoView(chats.Items[chats.Items.Count - 1]);
-            }// end of if statement
+            }
             else
-            {//start of else statement
-                // fallback messages
-                string[] fallbackMessages =
-                {//start of array
-                    "I'm sorry, I don't understand that. Could you rephrase your question?",
-                    "I didn't quite get that. Try asking about cyber security topics.",
-                    "Hmm, I'm not sure how to respond to that. Can you ask something else?",
-                    "I couldn't find an answer for that. Please ask about programming, security, or technology.",
-                    "My apologies, I don't have information on that topic yet."
-                };//end of array
+            {
 
-                Random random = new Random();
 
-                string fallbackMessage =
-                    fallbackMessages[random.Next(fallbackMessages.Length)];
+                string response = train_ai.CheckAndLearn(questions);
 
-                error_method("CyberBot", fallbackMessage);
-            }// end of else statement
 
-            // Clear the textbox
+                // It will learn from unknown questions
+                string unknownResponse = train_ai.CheckAndLearn(questions);
+                //display error message for message not found
+
+
+                error_method("ChatBot", unknownResponse);
+            }
+
+            // Clear the input box
             question.Clear();
 
-        }// end of ai_chat method
+
+        }
+
+        //end of ai_chat method
+
+
+
 
         //method to remove special characters
         private string RemoveSpecialCharacters(string input)
-        {//start of method
+        {
             if (string.IsNullOrWhiteSpace(input))
                 return string.Empty;
 
             StringBuilder sanitized = new StringBuilder();
 
             foreach (char c in input)
-            {//start of foreach loop    
-                if (char.IsLetterOrDigit(c)
-                    || char.IsWhiteSpace(c)
-                    || c == '\''
-                    || c == '-')
-                {//start of if statement
+            {
+                // Keep letters, numbers, spaces, and basic punctuation
+                if (char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || c == '\'' || c == '-')
+                {
                     sanitized.Append(c);
-                }// end of if statement
+                }
                 else
-                {// Replace special characters with space
+                {
+                    // Replace other special characters with space
                     sanitized.Append(' ');
-                }// end of else statement
-            }// end of foreach loop
+                }
+            }
 
+            // Clean up extra spaces and trim
             string result = sanitized.ToString();
-
-            result = Regex.Replace(result, @"\s+", " ").Trim();
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ").Trim();
 
             return result;
-        }// end of method
+        }
+
+
+        //end of method to remove special characters
+
 
         //method count to show interests randomly
         private void auto_show_interest()
-        {//start of method
+        {
+            //check if three times
             if (counting == 3)
-            {//start of if statement
+            {
+                //read the user's interests from file
                 string filename = "interested_topic.txt";
 
                 if (File.Exists(filename))
-                {//start of if statement
+                {
                     string[] lines = File.ReadAllLines(filename);
 
+                    //find the user's line
                     foreach (string line in lines)
-                    {//start of foreach loop
+                    {
                         if (line.StartsWith(username))
-                        {//start of if statement
-                            int colonIndex =
-                                line.IndexOf("interested in:");
-
+                        {
+                            //get the interests part
+                            int colonIndex = line.IndexOf("interested in:");
                             if (colonIndex >= 0)
-                            {//start of if statement
-                                string interests =
-                                    line.Substring(colonIndex + 14).Trim();
-                                  error_method(
-                                              "CyberBot",
-                                              "As someone interested in "
-                                              + interests +
-                                              ", you should regularly review your account security settings and stay alert online."
-                                              );
+                            {
+                                string interests = line.Substring(colonIndex + 14).Trim();
 
+                                //show reminder of interests
+                                error_method("ChatBot", "Just a reminder, you are interested in " + interests + " and ");
                                 ai_check(interests);
-
                                 break;
-                            }// end of if statement
-                        }// end of if statement
-                    }// end of foreach loop
-                }// end of if statement
+                            }
+                        }
+                    }
+                }
 
+                //reset counting
                 counting = 0;
-            }// end of if statement
+            }
             else
-            {//start of else statement
+            {
+                //incrementing
                 counting += 1;
-            }// end of else statement
-        }// end of method
+            }
+        }
+        //end of count interest method
 
-        // Updated error method
+
+
+        // Updated error method with better formatting
         private void error_method(string name, string message)
-        {//start of method
+        {
+            // Create a border for chats
             Border messageBorder = new Border
-            {//start of object initializer
+            {
                 Margin = new Thickness(0, 2, 0, 2),
                 Padding = new Thickness(5, 3, 5, 3),
                 CornerRadius = new CornerRadius(5)
-            };// end of object initializer
+            };
 
-            // chatbot color
-            if (name.ToLower().Contains("CyberBot")
-                || name.ToLower().Contains("chat"))
-            {//start of if statement
-                messageBorder.Background =
-                    new SolidColorBrush(Color.FromRgb(240, 248, 255));
-
-                messageBorder.BorderBrush =
-                    new SolidColorBrush(Color.FromRgb(173, 216, 230));
-            }// user color
+            // Set different background for user vs bot
+            if (name.ToLower().Contains("chatbot") || name.ToLower().Contains("chat"))
+            {// Light blue
+                messageBorder.Background = new SolidColorBrush(Color.FromRgb(240, 248, 255));
+                messageBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(173, 216, 230));
+            }
             else
-            {// start of else statement
-                // user color
-                messageBorder.Background =
-                    new SolidColorBrush(Color.FromRgb(245, 245, 245));
-
-                messageBorder.BorderBrush =
-                    new SolidColorBrush(Color.FromRgb(211, 211, 211));
-            }// end of else statement
-
+            {    // Light gray
+                messageBorder.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
+                messageBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(211, 211, 211));
+            }
             messageBorder.BorderThickness = new Thickness(1);
 
             TextBlock messageText = new TextBlock
-            {//start of object initializer
+            {
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2)
-            };// end of object initializer
+            };
 
-            Brush nameColor =
-                (name.ToLower().Contains("CyberBot")
-                || name.ToLower().Contains("chat"))
-                ? Brushes.DarkBlue
-                : Brushes.DarkGreen;
+            // Set color based on sender
+            Brush nameColor = (name.ToLower().Contains("chatbot") || name.ToLower().Contains("chat")) ?
+                              Brushes.DarkBlue : Brushes.DarkGreen;
 
             Brush messageColor = Brushes.Black;
 
             messageText.Inlines.Add(new Run
-            {//start of object initializer
+            {
                 Text = name + ": ",
                 Foreground = nameColor,
                 FontWeight = FontWeights.Bold
-            }// end of object initializer
-            )
-            ;
-
+            });
 
             messageText.Inlines.Add(new Run
-            {//start of object initializer
+            {
                 Text = message,
                 Foreground = messageColor
-            }// end of object initializer
-            );
+            });
 
             messageBorder.Child = messageText;
-
             chats.Items.Add(messageBorder);
 
             chats.ScrollIntoView(chats.Items[chats.Items.Count - 1]);
-        }// end of method
+        }//end of error method
+
+
+
+
 
     }//end of class
 }//end of namespace
